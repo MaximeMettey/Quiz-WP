@@ -6,6 +6,7 @@
 class QLMS_Course_Admin {
 
     public function __construct() {
+        add_action('save_post_qlms_course', array($this, 'save_course_meta'), 10, 2);
         add_action('save_post_qlms_lesson', array($this, 'save_lesson_meta'), 10, 2);
     }
 
@@ -96,7 +97,14 @@ class QLMS_Course_Admin {
             'order' => 'ASC',
         ));
 
-        $course_id = $lesson ? $lesson->course_id : '';
+        // Get the course post_id from the course table ID
+        $course_post_id = '';
+        if ($lesson && $lesson->course_id) {
+            $course_meta = QLMS_Course::get($lesson->course_id);
+            $course_post_id = $course_meta ? $course_meta->post_id : '';
+        }
+
+        $course_id = $course_post_id;
         $duration = $lesson ? $lesson->duration : '';
         $sort_order = $lesson ? $lesson->sort_order : 0;
 
@@ -106,7 +114,7 @@ class QLMS_Course_Admin {
     /**
      * Save course meta
      */
-    public function save_course_meta($post_id) {
+    public function save_course_meta($post_id, $post = null) {
         // Check nonce
         if (!isset($_POST['qlms_course_meta_nonce']) || !wp_verify_nonce($_POST['qlms_course_meta_nonce'], 'qlms_course_meta')) {
             return;
@@ -161,9 +169,14 @@ class QLMS_Course_Admin {
 
         $lesson = QLMS_Lesson::get_by_post($post_id);
 
+        // Get the actual course_id from the courses table
+        $course_post_id = isset($_POST['qlms_course_id']) ? intval($_POST['qlms_course_id']) : 0;
+        $course_meta = $course_post_id ? QLMS_Course::get_by_post($course_post_id) : null;
+        $course_id = $course_meta ? $course_meta->id : 0;
+
         $data = array(
             'post_id' => $post_id,
-            'course_id' => isset($_POST['qlms_course_id']) ? intval($_POST['qlms_course_id']) : 0,
+            'course_id' => $course_id,
             'duration' => isset($_POST['qlms_duration']) ? intval($_POST['qlms_duration']) : 0,
             'sort_order' => isset($_POST['qlms_sort_order']) ? intval($_POST['qlms_sort_order']) : 0,
         );
